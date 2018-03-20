@@ -11,7 +11,8 @@ typedef enum
   LEFT,
   RIGHT,
   UP,
-  DOWN
+  DOWN,
+  NOPE
 } cmd;
 uint8_t board[SIZE][SIZE];
 
@@ -223,7 +224,7 @@ void make_move(cmd command)
     delay(150);
     addRandom(board);
     render(board);
-    if (gameEnded(board)) 
+    if (gameEnded(board))
     {
       //TODO Game Over
     }
@@ -234,6 +235,7 @@ void make_move(cmd command)
 
 void render(uint8_t board[SIZE][SIZE])
 {
+  Serial.println("______________________________________");
   for (int i = 0; i < SIZE; i++)
   {
     for (int j = 0; j < SIZE; j++)
@@ -246,30 +248,31 @@ cmd get_joystick_command()
 {
   int x = analogRead(joyPin1);
   int y = analogRead(joyPin2);
-  x = map(x, 0, 1023, -1, 1);
-  y = map(y, 0, 1023, -1, 1);
-  if (x == -1)
-    return LEFT;
-  if (x == 1)
-    return RIGHT;
-  if (y == -1)
-    return DOWN;
-  if (y == -1)
+  if (x < 100)
     return UP;
+  if (x > 800)
+    return DOWN;
+  if (y > 800)
+    return RIGHT;
+  if (y < 100)
+    return LEFT;
+  return NOPE;
+    
 }
 
 
 void setup() {
-  // put your setup code here, to run once:
   Serial.begin(9600);
   initBoard(board);
-
 }
 
 
 void loop() {
   cmd command = get_joystick_command();
-  delay(50);
-  make_move(command);
-  //render();
+  delay(200);
+  if(command != NOPE)
+    make_move(command);
+
+
+
 }
