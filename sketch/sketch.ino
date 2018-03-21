@@ -1,10 +1,13 @@
-#include <string.h>
+#include <Arduino.h>
+#include <U8g2lib.h>
+#include <Wire.h>
+
 #define SIZE 4
 
 //Hardware configuration
 int joyPin1 = 0;                 // slider variable connecetd to analog pin 0
 int joyPin2 = 1;                 // slider variable connecetd to analog pin 1
-
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, 6, 7);
 // Defenitions
 typedef enum
 {
@@ -180,12 +183,12 @@ void addRandom(uint8_t board[SIZE][SIZE]) {
       }
     }
   }
-
+  randomSeed(analogRead(2));
   if (len > 0) {
-    r = rand() % len;
+    r = random(len);
     x = list[r][0];
     y = list[r][1];
-    n = (rand() % 10) / 9 + 1;
+    n = (random(10)) / 9 + 1;
     board[x][y] = n;
   }
 }
@@ -220,8 +223,8 @@ void make_move(cmd command)
     default: success = false;
   }
   if (success) {
-    render(board);
-    delay(150);
+    //render(board);
+    //delay(150);
     addRandom(board);
     render(board);
     if (gameEnded(board))
@@ -233,16 +236,6 @@ void make_move(cmd command)
 
 
 
-void render(uint8_t board[SIZE][SIZE])
-{
-  Serial.println("______________________________________");
-  for (int i = 0; i < SIZE; i++)
-  {
-    for (int j = 0; j < SIZE; j++)
-      Serial.print(board[i][j]);
-    Serial.print('\n');
-  }
-}
 
 cmd get_joystick_command()
 {
@@ -257,22 +250,58 @@ cmd get_joystick_command()
   if (y < 100)
     return LEFT;
   return NOPE;
-    
+
 }
 
 
 void setup() {
   Serial.begin(9600);
+  u8g2.begin();
   initBoard(board);
+
 }
 
+void render(uint8_t board[SIZE][SIZE])
+{
+  //  Serial.println("______________________________________");
+  //  for (int i = 0; i < SIZE; i++)
+  //  {
+  //    for (int j = 0; j < SIZE; j++)
+  //    {
+  //      if (board[i][j] > 0)
+  //        Serial.print(board[i][j]);
+  //      else
+  //        Serial.print("_");
+  //      Serial.print(" ");
+  //    }
+  //    Serial.print('\n');
+  //  }
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_ncenB10_tr);
+  int height = 15;
+  int weight = 10;
+  char cstr[16];
+  for (int i = 0; i < SIZE; i++)
+  {
+    for (int j = 0; j < SIZE; j++)
+    {
+      itoa(board[i][j], cstr, 10);
+      if (board[i][j] > 0)
+        u8g2.drawStr(weight * j, height + i * height, cstr);
+
+      else
+        u8g2.drawStr(weight * j, height + i * height, "_");
+      u8g2.drawStr(weight * j, height + i * height, " ");
+    }
+
+  }
+
+  u8g2.sendBuffer();
+}
 
 void loop() {
   cmd command = get_joystick_command();
-  delay(200);
-  if(command != NOPE)
+  delay(50);
+  if (command != NOPE)
     make_move(command);
-
-
-
 }
