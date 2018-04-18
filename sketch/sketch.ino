@@ -1,13 +1,16 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <Wire.h>
+#include <EEPROM.h>
 
 #define SIZE 4
 
 //Hardware configuration
-int joyPin1 = 0;                 // slider variable connecetd to analog pin 0
-int joyPin2 = 1;                 // slider variable connecetd to analog pin 1
-U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, 6, 7);
+int joyPin1 = 5;                 // slider variable connecetd to analog pin 0
+int joyPin2 = 6;                 // slider variable connecetd to analog pin 1
+int swPin = 5;
+U8G2_SSD1327_MIDAS_128X128_1_4W_HW_SPI u8g2(U8G2_R0, 3, 4);
+//U8X8_SSD1327_MIDAS_128X128_4W_HW_SPI u8x8(3, 4);
 // Defenitions
 typedef enum
 {
@@ -20,8 +23,23 @@ typedef enum
 uint8_t board[SIZE][SIZE];
 
 
-uint32_t score = 0;
+unsigned int score = 0;
 uint8_t scheme = 0;
+
+void writeBestScore(unsigned int bs)
+{
+  byte raw[2];
+  (unsigned int&)raw = bs;
+  for (byte i = 0; i < 2; i++) EEPROM.write(0 + i, raw[i]);
+}
+
+unsigned int readBestScore()
+{
+  byte raw[2];
+  for (byte i = 0; i < 2; i++) raw[i] = EEPROM.read(0 + i);
+  unsigned int &num = (unsigned int&)raw;
+  return num;
+}
 
 uint8_t findTarget(uint8_t array[SIZE], uint8_t x, uint8_t stop) {
   uint8_t t;
@@ -46,7 +64,7 @@ uint8_t findTarget(uint8_t array[SIZE], uint8_t x, uint8_t stop) {
   // we did not find a
   return x;
 }
-
+bool best_score_showed = false;
 bool slideArray(uint8_t array[SIZE]) {
   bool success = false;
   uint8_t x, t, stop = 0;
@@ -64,6 +82,23 @@ bool slideArray(uint8_t array[SIZE]) {
           array[t]++;
           // increase score
           score += (uint32_t)1 << array[t];
+          if (score > readBestScore())
+          {
+            writeBestScore(score);
+            if (!best_score_showed)
+            {
+              u8g2.firstPage();
+              do {
+                u8g2.setFont(u8g2_font_t0_22b_tr);
+                u8g2.drawStr(0, 30, "New best");
+                u8g2.drawStr(0, 60, "SCORE!");
+              } while (u8g2.nextPage());
+              delay(500);
+              render(board);
+              best_score_showed = true;
+            }
+          }
+
           // set stop to avoid double merge
           stop = t + 1;
         }
@@ -229,10 +264,15 @@ void make_move(cmd command)
     render(board);
     if (gameEnded(board))
     {
-      //TODO Game Over
+      u8g2.firstPage();
+      do {
+        u8g2.setFont(u8g2_font_t0_22b_tr);
+        u8g2.drawStr(16, 60, "You LOSE, mthfckr");
+      } while (u8g2.nextPage());
     }
   }
 }
+
 
 
 
@@ -256,52 +296,103 @@ cmd get_joystick_command()
 
 void setup() {
   Serial.begin(9600);
-  u8g2.begin();
-  initBoard(board);
+  pinMode(swPin, INPUT);
+  digitalWrite(swPin, HIGH);
 
+  u8g2.begin();
+  u8g2.firstPage();
+  do
+  {
+    u8g2.setFont(u8g2_font_ncenB14_tr);
+    u8g2.drawStr(0, 24, "OLEG2048");
+  } while (u8g2.nextPage());
+  delay(1000);
+  initBoard(board);
 }
 
 void render(uint8_t board[SIZE][SIZE])
 {
-  //  Serial.println("______________________________________");
-  //  for (int i = 0; i < SIZE; i++)
-  //  {
-  //    for (int j = 0; j < SIZE; j++)
-  //    {
-  //      if (board[i][j] > 0)
-  //        Serial.print(board[i][j]);
-  //      else
-  //        Serial.print("_");
-  //      Serial.print(" ");
-  //    }
-  //    Serial.print('\n');
-  //  }
-  u8g2.clearBuffer();
-  u8g2.setFont(u8g2_font_ncenB10_tr);
-  int height = 15;
-  int weight = 10;
-  char cstr[16];
-  for (int i = 0; i < SIZE; i++)
-  {
-    for (int j = 0; j < SIZE; j++)
-    {
-      itoa(board[i][j], cstr, 10);
-      if (board[i][j] > 0)
-        u8g2.drawStr(weight * j, height + i * height, cstr);
 
-      else
-        u8g2.drawStr(weight * j, height + i * height, "_");
-      u8g2.drawStr(weight * j, height + i * height, " ");
+  u8g2.firstPage();
+  do {
+
+    int height = 32;
+    int weight = 32;
+    char cstr[16];
+    for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+      {
+        int now = board[i][j];
+        int r =  pow(2, now) + 1;
+        if (r == 3)
+          r = 2;
+        itoa(r, cstr, 10);
+        if (now > 0)
+        {
+          if (now >= 7)
+            u8g2.setFont(u8g2_font_logisoso16_tr);
+          if (now >= 10)
+            u8g2.setFont(u8g2_font_t0_14b_tr);
+          if (now < 7)
+            u8g2.setFont(u8g2_font_logisoso18_tr);
+          u8g2.drawStr(weight * j, height + i * height, cstr);
+          //delay(500);
+        }
+        else
+        {
+          u8g2.drawStr(weight * j, height + i * height, " ");
+          //delay(500);
+        }
+        u8g2.drawStr(weight * j, height + i * height, " ");
+      }
     }
 
-  }
+  } while ( u8g2.nextPage() );
 
-  u8g2.sendBuffer();
+  //u8x8.sendBuffer();
 }
 
+void show_menu()
+{
+  u8g2.firstPage();
+  do {
+    u8g2.setFont(u8g2_font_logisoso18_tr);
+    char scorestr[16];
+    sprintf(scorestr, "Score=%i", score);
+    u8g2.drawStr(0, 32, scorestr);
+    u8g2.drawStr(2, 64, "SAVE");
+    u8g2.drawStr(80, 64, "LOAD");
+    u8g2.setFont(u8g2_font_t0_14b_tr);
+    char bestScoreStr[16];
+    sprintf(bestScoreStr, "Best score=%i", readBestScore());
+    u8g2.drawStr(0, 120, bestScoreStr);
+  } while ( u8g2.nextPage() );
+}
+
+void menu_command(cmd command)
+{
+  return;
+}
+bool menu_mode = false;
+
 void loop() {
+  if (!digitalRead(swPin))
+  {
+    delay(200);
+    menu_mode = !menu_mode;
+    if (menu_mode)
+      show_menu();
+    else
+      render(board);
+  }
   cmd command = get_joystick_command();
-  delay(50);
+  delay(100 );
   if (command != NOPE)
-    make_move(command);
+  {
+    if (!menu_mode)
+      make_move(command);
+    else
+      menu_command(command);
+  }
 }
