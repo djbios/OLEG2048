@@ -15,7 +15,7 @@ U8G2_SSD1327_MIDAS_128X128_1_4W_HW_SPI u8g2(U8G2_R0, 3, 4);
 
 #define picWidth 120
 #define picHeight 25
-static char picBits[] = {
+static uint8_t picBits[] = {
   0xF8, 0xFF, 0xFF, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   0x00, 0xFE, 0x01, 0xFE, 0xFF, 0xFF, 0x01, 0xF0, 0xFF, 0x01, 0xFC, 0x03,
   0xE0, 0xFF, 0x1F, 0xC0, 0xFF, 0x07, 0xFE, 0xFF, 0xFF, 0x01, 0xFC, 0xFF,
@@ -107,6 +107,50 @@ int getBattery()
 
   int  an = analogRead(battPin);
   return map(an, 700, 1020, 0, 100);
+}
+
+
+void render(uint8_t board[SIZE][SIZE])
+{
+
+  u8g2.firstPage();
+  do {
+
+    int height = 32;
+    int weight = 32;
+    char cstr[16];
+    for (int i = 0; i < SIZE; i++)
+    {
+      for (int j = 0; j < SIZE; j++)
+      {
+        int now = board[i][j];
+        int r =  pow(2, now) + 1;
+        if (r == 3)
+          r = 2;
+        itoa(r, cstr, 10);
+        if (now > 0)
+        {
+          if (now >= 7)
+            u8g2.setFont(u8g2_font_logisoso16_tr);
+          if (now >= 10)
+            u8g2.setFont(u8g2_font_t0_14b_tr);
+          if (now < 7)
+            u8g2.setFont(u8g2_font_logisoso18_tr);
+          u8g2.drawStr(weight * j, height + i * height, cstr);
+          //delay(500);
+        }
+        else
+        {
+          u8g2.drawStr(weight * j, height + i * height, " ");
+          //delay(500);
+        }
+        u8g2.drawStr(weight * j, height + i * height, " ");
+      }
+    }
+
+  } while ( u8g2.nextPage() );
+
+  //u8x8.sendBuffer();
 }
 
 uint8_t findTarget(uint8_t array[SIZE], uint8_t x, uint8_t stop) {
@@ -380,48 +424,6 @@ void setup() {
   render(board);
 }
 
-void render(uint8_t board[SIZE][SIZE])
-{
-
-  u8g2.firstPage();
-  do {
-
-    int height = 32;
-    int weight = 32;
-    char cstr[16];
-    for (int i = 0; i < SIZE; i++)
-    {
-      for (int j = 0; j < SIZE; j++)
-      {
-        int now = board[i][j];
-        int r =  pow(2, now) + 1;
-        if (r == 3)
-          r = 2;
-        itoa(r, cstr, 10);
-        if (now > 0)
-        {
-          if (now >= 7)
-            u8g2.setFont(u8g2_font_logisoso16_tr);
-          if (now >= 10)
-            u8g2.setFont(u8g2_font_t0_14b_tr);
-          if (now < 7)
-            u8g2.setFont(u8g2_font_logisoso18_tr);
-          u8g2.drawStr(weight * j, height + i * height, cstr);
-          //delay(500);
-        }
-        else
-        {
-          u8g2.drawStr(weight * j, height + i * height, " ");
-          //delay(500);
-        }
-        u8g2.drawStr(weight * j, height + i * height, " ");
-      }
-    }
-
-  } while ( u8g2.nextPage() );
-
-  //u8x8.sendBuffer();
-}
 
 void show_menu()
 {
